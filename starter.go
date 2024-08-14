@@ -3,9 +3,7 @@ package main
 import (
 	"fmt"
 	"redis/redisMQ"
-	_ "redis/redisMQ"
 
-	_ "github.com/adjust/redismq"
 	"github.com/joho/godotenv"
 )
 
@@ -22,6 +20,7 @@ func main() {
 	redisMQ.RedisMQInit(bufferedQueueArray, queueArray)
 
 	redisMQ.AddConsumer(1, "queue", "consumer1")
+	redisMQ.AddConsumer(1, "queue", "consumer2")
 	redisMQ.AddConsumer(2, "bufferQueue", "bufferConsumer1")
 
 	redisMQ.QueuePush(1, "queue", "테스트일번")
@@ -30,7 +29,7 @@ func main() {
 
 	fmt.Printf("Queue 결과 : %s\n", result1)
 
-	_, result2 := redisMQ.QueuePop(1, "queue", "consumer1")
+	_, result2 := redisMQ.QueuePop(1, "queue", "consumer2")
 
 	fmt.Printf("Queue 결과 : %s\n", result2)
 
