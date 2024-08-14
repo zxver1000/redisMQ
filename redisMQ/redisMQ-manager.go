@@ -14,9 +14,9 @@ import (
  *  2.bufferedQueue
  */
 var QueueType map[int]string
-var QueueList map[string]*redismq.Queue
-var BufferedQueueList map[string]*redismq.BufferedQueue
-var Consumer map[model.Pair]*redismq.Consumer
+var QueueMap map[string]*redismq.Queue
+var BufferedQueueMap map[string]*redismq.BufferedQueue
+var ConsumerMap map[model.ConsumerMapKey]*redismq.Consumer
 var RedisConfig *model.RedisConfig
 
 // I have found anything over 200 as bufferSize not to increase performance any further.
@@ -34,19 +34,19 @@ func RedisMQInit(bufferedQueueName []string, queueName []string) {
 	QueueType = make(map[int]string)
 	QueueType[1] = "queue"
 	QueueType[2] = "bufferedQueue"
-	QueueList = make(map[string]*redismq.Queue)
-	BufferedQueueList = make(map[string]*redismq.BufferedQueue)
-	Consumer = make(map[model.Pair]*redismq.Consumer)
+	QueueMap = make(map[string]*redismq.Queue)
+	BufferedQueueMap = make(map[string]*redismq.BufferedQueue)
+	ConsumerMap = make(map[model.ConsumerMapKey]*redismq.Consumer)
 
 	for _, name := range bufferedQueueName {
 		queue := redismq.CreateBufferedQueue(RedisConfig.Host, RedisConfig.Port, RedisConfig.Password, int64(RedisConfig.RedisDB), name, bufferSize)
 		queue.Start()
-		BufferedQueueList[name] = queue
+		BufferedQueueMap[name] = queue
 	}
 
 	for _, name := range queueName {
 		queue := redismq.CreateQueue(RedisConfig.Host, RedisConfig.Port, RedisConfig.Password, int64(RedisConfig.RedisDB), name)
-		QueueList[name] = queue
+		QueueMap[name] = queue
 	}
 
 }
@@ -59,14 +59,14 @@ func QueuePush(queueType int, queueName string, payload string) bool {
 	}
 	/* QueueType : queue */
 	if queueType == 1 {
-		queue := QueueList[queueName]
+		queue := QueueMap[queueName]
 		err := queue.Put(payload)
 		if err != nil {
 			panic(err)
 		}
 	} else {
 		/* QueueType : bufferedQueue */
-		bufferedQueue := BufferedQueueList[queueName]
+		bufferedQueue := BufferedQueueMap[queueName]
 		err := bufferedQueue.Put(payload)
 		if err != nil {
 			panic(err)
@@ -75,21 +75,21 @@ func QueuePush(queueType int, queueName string, payload string) bool {
 	return true
 }
 
-func QueuePop(queueType int, queueName string, consumerName string) (bool, string) {
+func QueuePop(queueType int, queueName string, consumerMapName string) (bool, string) {
 
 	if !isExistQueue(queueType, queueName) {
 		return false, "Queue not exist"
 	}
 
-	if !isExistConsumer(queueType, consumerName) {
-		return false, "Consumer not exist"
+	if !isExistConsumerMap(queueType, consumerMapName) {
+		return false, "ConsumerMap not exist"
 	}
 
-	consumer := Consumer[model.Pair{QueueType[queueType], consumerName}]
+	consumerMap := ConsumerMap[model.ConsumerMapKey{QueueType[queueType], consumerMapName}]
 
 	/* unaked 처리 어떻게? */
-	if consumer.HasUnacked() {
-		data, err := consumer.GetUnacked()
+	if consumerMap.HasUnacked() {
+		data, err := consumerMap.GetUnacked()
 		if err != nil {
 			panic(err)
 		}
@@ -97,9 +97,10 @@ func QueuePop(queueType int, queueName string, consumerName string) (bool, strin
 		if err != nil {
 			panic(err)
 		}
+		return true, data.Payload
 	}
 
-	data, err := consumer.Get()
+	data, err := consumerMap.Get()
 
 	if err != nil {
 		panic(err)
@@ -113,20 +114,20 @@ func QueuePop(queueType int, queueName string, consumerName string) (bool, strin
 	return true, data.Payload
 }
 
-func BufferedQueueMultiPop(queueName string, consumerName string, size int) (bool, []string) {
+func BufferedQueueMultiPop(queueName string, consumerMapName string, size int) (bool, []string) {
 
 	if !isExistQueue(2, queueName) {
 		return false, nil
 	}
-	if !isExistConsumer(2, consumerName) {
+	if !isExistConsumerMap(2, consumerMapName) {
 		return false, nil
 	}
 	if size > 20 {
 		size = 20
 	}
 
-	consumer := Consumer[model.Pair{QueueType[2], consumerName}]
-	packages, err := consumer.MultiGet(size)
+	consumerMap := ConsumerMap[model.ConsumerMapKey{QueueType[2], consumerMapName}]
+	packages, err := consumerMap.MultiGet(size)
 	if err != nil {
 		panic(err)
 	}
@@ -142,29 +143,29 @@ func BufferedQueueMultiPop(queueName string, consumerName string, size int) (boo
 	return true, returnData
 }
 
-func AddConsumer(queueType int, queueName string, consumerName string) bool {
+func AddConsumer(queueType int, queueName string, consumerMapName string) bool {
 
 	if !isExistQueue(queueType, queueName) {
 		return false
 	}
 	/* QueueType : queue */
 	if queueType == 1 {
-		queue := QueueList[queueName]
+		queue := QueueMap[queueName]
 
-		consumer, err := queue.AddConsumer(consumerName)
+		consumerMap, err := queue.AddConsumer(consumerMapName)
 		if err != nil {
 
 			panic(err)
 		}
-		Consumer[model.Pair{QueueType[queueType], consumerName}] = consumer
+		ConsumerMap[model.ConsumerMapKey{QueueType[queueType], consumerMapName}] = consumerMap
 	} else {
 		/* QueueType : bufferedQueue */
-		bufferedQueue := BufferedQueueList[queueName]
-		consumer, err := bufferedQueue.AddConsumer(consumerName)
+		bufferedQueue := BufferedQueueMap[queueName]
+		consumerMap, err := bufferedQueue.AddConsumer(consumerMapName)
 		if err != nil {
 			panic(err)
 		}
-		Consumer[model.Pair{QueueType[queueType], consumerName}] = consumer
+		ConsumerMap[model.ConsumerMapKey{QueueType[queueType], consumerMapName}] = consumerMap
 
 	}
 
@@ -173,13 +174,13 @@ func AddConsumer(queueType int, queueName string, consumerName string) bool {
 
 func BufferedQueueFlush(queueNames []string) {
 	for _, queueName := range queueNames {
-		bufferedQueue := BufferedQueueList[queueName]
+		bufferedQueue := BufferedQueueMap[queueName]
 		bufferedQueue.FlushBuffer()
 	}
 }
 
-func isExistConsumer(queueType int, consumerName string) bool {
-	if _, exists := Consumer[model.Pair{QueueType[queueType], consumerName}]; exists {
+func isExistConsumerMap(queueType int, consumerMapName string) bool {
+	if _, exists := ConsumerMap[model.ConsumerMapKey{QueueType[queueType], consumerMapName}]; exists {
 		return true
 	}
 	return false
@@ -188,13 +189,13 @@ func isExistConsumer(queueType int, consumerName string) bool {
 func isExistQueue(queueType int, queueName string) bool {
 
 	if queueType == 1 {
-		if _, exists := QueueList[queueName]; exists {
+		if _, exists := QueueMap[queueName]; exists {
 			return true
 		}
 		return false
 
 	} else {
-		if _, exists := BufferedQueueList[queueName]; exists {
+		if _, exists := BufferedQueueMap[queueName]; exists {
 			return true
 		}
 		return false

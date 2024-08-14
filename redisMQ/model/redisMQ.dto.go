@@ -1,6 +1,6 @@
 package model
 
-type Pair struct {
+type ConsumerMapKey struct {
 	QueueName    string
 	ConsumerName string
 }
