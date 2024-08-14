@@ -85,11 +85,11 @@ func QueuePop(queueType int, queueName string, consumerName string) (bool, strin
 		return false, "ConsumerMap not exist"
 	}
 
-	consumerMap := ConsumerMap[model.ConsumerMapKey{QueueType[queueType], consumerName}]
+	consumer := ConsumerMap[model.ConsumerMapKey{QueueType[queueType], consumerName}]
 
 	/* unaked 처리 어떻게? */
-	if consumerMap.HasUnacked() {
-		data, err := consumerMap.GetUnacked()
+	if consumer.HasUnacked() {
+		data, err := consumer.GetUnacked()
 		if err != nil {
 			panic(err)
 		}
@@ -100,7 +100,7 @@ func QueuePop(queueType int, queueName string, consumerName string) (bool, strin
 		return true, data.Payload
 	}
 
-	data, err := consumerMap.Get()
+	data, err := consumer.Get()
 
 	if err != nil {
 		panic(err)
@@ -126,8 +126,8 @@ func BufferedQueueMultiPop(queueName string, consumerName string, size int) (boo
 		size = 20
 	}
 
-	consumerMap := ConsumerMap[model.ConsumerMapKey{QueueType[2], consumerName}]
-	packages, err := consumerMap.MultiGet(size)
+	consumer := ConsumerMap[model.ConsumerMapKey{QueueType[2], consumerName}]
+	packages, err := consumer.MultiGet(size)
 	if err != nil {
 		panic(err)
 	}
@@ -152,20 +152,20 @@ func AddConsumer(queueType int, queueName string, consumerName string) bool {
 	if queueType == 1 {
 		queue := QueueMap[queueName]
 
-		consumerMap, err := queue.AddConsumer(consumerName)
+		consumer, err := queue.AddConsumer(consumerName)
 		if err != nil {
 
 			panic(err)
 		}
-		ConsumerMap[model.ConsumerMapKey{QueueType[queueType], consumerName}] = consumerMap
+		ConsumerMap[model.ConsumerMapKey{QueueType[queueType], consumerName}] = consumer
 	} else {
 		/* QueueType : bufferedQueue */
 		bufferedQueue := BufferedQueueMap[queueName]
-		consumerMap, err := bufferedQueue.AddConsumer(consumerName)
+		consumer, err := bufferedQueue.AddConsumer(consumerName)
 		if err != nil {
 			panic(err)
 		}
-		ConsumerMap[model.ConsumerMapKey{QueueType[queueType], consumerName}] = consumerMap
+		ConsumerMap[model.ConsumerMapKey{QueueType[queueType], consumerName}] = consumer
 
 	}
 
