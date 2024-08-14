@@ -75,17 +75,17 @@ func QueuePush(queueType int, queueName string, payload string) bool {
 	return true
 }
 
-func QueuePop(queueType int, queueName string, consumerMapName string) (bool, string) {
+func QueuePop(queueType int, queueName string, consumerName string) (bool, string) {
 
 	if !isExistQueue(queueType, queueName) {
 		return false, "Queue not exist"
 	}
 
-	if !isExistConsumerMap(queueType, consumerMapName) {
+	if !isExistConsumerMap(queueType, consumerName) {
 		return false, "ConsumerMap not exist"
 	}
 
-	consumerMap := ConsumerMap[model.ConsumerMapKey{QueueType[queueType], consumerMapName}]
+	consumerMap := ConsumerMap[model.ConsumerMapKey{QueueType[queueType], consumerName}]
 
 	/* unaked 처리 어떻게? */
 	if consumerMap.HasUnacked() {
@@ -114,19 +114,19 @@ func QueuePop(queueType int, queueName string, consumerMapName string) (bool, st
 	return true, data.Payload
 }
 
-func BufferedQueueMultiPop(queueName string, consumerMapName string, size int) (bool, []string) {
+func BufferedQueueMultiPop(queueName string, consumerName string, size int) (bool, []string) {
 
 	if !isExistQueue(2, queueName) {
 		return false, nil
 	}
-	if !isExistConsumerMap(2, consumerMapName) {
+	if !isExistConsumerMap(2, consumerName) {
 		return false, nil
 	}
 	if size > 20 {
 		size = 20
 	}
 
-	consumerMap := ConsumerMap[model.ConsumerMapKey{QueueType[2], consumerMapName}]
+	consumerMap := ConsumerMap[model.ConsumerMapKey{QueueType[2], consumerName}]
 	packages, err := consumerMap.MultiGet(size)
 	if err != nil {
 		panic(err)
@@ -143,7 +143,7 @@ func BufferedQueueMultiPop(queueName string, consumerMapName string, size int) (
 	return true, returnData
 }
 
-func AddConsumer(queueType int, queueName string, consumerMapName string) bool {
+func AddConsumer(queueType int, queueName string, consumerName string) bool {
 
 	if !isExistQueue(queueType, queueName) {
 		return false
@@ -152,20 +152,20 @@ func AddConsumer(queueType int, queueName string, consumerMapName string) bool {
 	if queueType == 1 {
 		queue := QueueMap[queueName]
 
-		consumerMap, err := queue.AddConsumer(consumerMapName)
+		consumerMap, err := queue.AddConsumer(consumerName)
 		if err != nil {
 
 			panic(err)
 		}
-		ConsumerMap[model.ConsumerMapKey{QueueType[queueType], consumerMapName}] = consumerMap
+		ConsumerMap[model.ConsumerMapKey{QueueType[queueType], consumerName}] = consumerMap
 	} else {
 		/* QueueType : bufferedQueue */
 		bufferedQueue := BufferedQueueMap[queueName]
-		consumerMap, err := bufferedQueue.AddConsumer(consumerMapName)
+		consumerMap, err := bufferedQueue.AddConsumer(consumerName)
 		if err != nil {
 			panic(err)
 		}
-		ConsumerMap[model.ConsumerMapKey{QueueType[queueType], consumerMapName}] = consumerMap
+		ConsumerMap[model.ConsumerMapKey{QueueType[queueType], consumerName}] = consumerMap
 
 	}
 
@@ -179,8 +179,8 @@ func BufferedQueueFlush(queueNames []string) {
 	}
 }
 
-func isExistConsumerMap(queueType int, consumerMapName string) bool {
-	if _, exists := ConsumerMap[model.ConsumerMapKey{QueueType[queueType], consumerMapName}]; exists {
+func isExistConsumerMap(queueType int, consumerName string) bool {
+	if _, exists := ConsumerMap[model.ConsumerMapKey{QueueType[queueType], consumerName}]; exists {
 		return true
 	}
 	return false
