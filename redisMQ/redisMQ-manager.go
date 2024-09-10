@@ -20,6 +20,7 @@ var ConsumerMap map[model.ConsumerMapKey]*redismq.Consumer
 var RedisConfig *model.RedisConfig
 
 // I have found anything over 200 as bufferSize not to increase performance any further.
+
 const bufferSize = 200
 
 func RedisMQInit(bufferedQueueName []string, queueName []string) {
